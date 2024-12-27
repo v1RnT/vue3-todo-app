@@ -1,115 +1,135 @@
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import StatusFilter from './components/StatusFilter.vue'
+import TodoItem from './components/TodoItem.vue'
+import Message from './components/MessageUs.vue'
+import * as todoApi from './api/todos'
+import type { Todo } from '@/types/Todo'
+import { Filter } from './types/Filter'
+import { Errors } from './types/Errors'
+
+const todos = ref<Todo[]>([])
+const title = ref<string>('')
+const errorMessage = ref<string>(Errors.Default)
+const status = ref<Filter>(Filter.All)
+
+onMounted(async () => {
+  try {
+    todos.value = await todoApi.getTodos()
+  } catch {
+    errorMessage.value = Errors.LoadingTodos
+  }
+})
+
+const activeTodos = computed(() => todos.value.filter((todo) => !todo.completed))
+const visibleTodos = computed(() => {
+  if (status.value === Filter.Active) {
+    return activeTodos.value
+  }
+  if (status.value === Filter.Completed) {
+    return todos.value.filter((todo) => todo.completed)
+  }
+  return todos.value
+})
+
+const addTodo = async () => {
+  if (!title.value.trim()) {
+    errorMessage.value = Errors.EmptyTitle
+    return
+  }
+
+  try {
+    const newTodo = await todoApi.postTodo({
+      userId: todoApi.USER_ID,
+      title: title.value.trim(),
+      completed: false,
+    })
+    todos.value.push(newTodo)
+    title.value = ''
+  } catch {
+    errorMessage.value = Errors.AddTodo
+  }
+}
+
+const deleteTodo = async (id: number) => {
+  try {
+    await todoApi.deleteTodo(id)
+    todos.value = todos.value.filter((todo) => todo.id !== id)
+  } catch {
+    errorMessage.value = Errors.DeleteTodo
+  }
+}
+
+const updateTodo = async (updatedData: Partial<Todo> & { id: number }) => {
+  const { id, ...updateProps } = updatedData
+
+  try {
+    const updatedTodo = await todoApi.patchTodo(updateProps, id)
+    const currentTodo = todos.value.find((todo) => todo.id === id)
+    if (currentTodo) {
+      Object.assign(currentTodo, updatedTodo)
+    }
+  } catch {
+    errorMessage.value = Errors.UpdateTodo
+  }
+}
+</script>
+
 <template>
   <div class="todoapp">
-    <h1 class="todoapp__title">todos</h1>
+    <h1 class="todoapp__title">todos {{ todos.length > 0 ? todos.length : '' }}</h1>
 
     <div class="todoapp__content">
       <header class="todoapp__header">
-        <button type="button" class="todoapp__toggle-all active" data-cy="ToggleAllButton"></button>
+        <button
+          v-if="todos.length > 0"
+          type="button"
+          class="todoapp__toggle-all"
+          :class="{ active: activeTodos.length === 0 }"
+        ></button>
 
-        <form>
-          <input
-            data-cy="NewTodoField"
-            type="text"
-            class="todoapp__new-todo"
-            placeholder="What needs to be done?"
-          />
+        <form @submit.prevent="addTodo">
+          <input class="todoapp__new-todo" placeholder="What needs to be done?" v-model="title" />
         </form>
       </header>
 
-      <section class="todoapp__main" data-cy="TodoList">
-        <div data-cy="Todo" class="todo completed">
-          <label class="todo__status-label">
-            <input data-cy="TodoStatus" type="checkbox" class="todo__status" checked />
-          </label>
+      <TransitionGroup class="todoapp__main" tag="section" name="todolist" v-if="todos.length > 0">
+        <TodoItem
+          v-for="todo in visibleTodos"
+          :todo="todo"
+          :key="todo.id"
+          @delete="deleteTodo(todo.id)"
+          @update="updateTodo($event)"
+        />
+      </TransitionGroup>
 
-          <span data-cy="TodoTitle" class="todo__title"> Completed Todo </span>
-
-          <button type="button" class="todo__remove" data-cy="TodoDelete">×</button>
-
-          <div data-cy="TodoLoader" class="modal overlay">
-            <div class="modal-background has-background-white-ter"></div>
-            <div class="loader"></div>
-          </div>
-        </div>
-
-        <div data-cy="Todo" class="todo">
-          <label class="todo__status-label">
-            <input data-cy="TodoStatus" type="checkbox" class="todo__status" />
-          </label>
-
-          <span data-cy="TodoTitle" class="todo__title"> Not Completed Todo </span>
-          <button type="button" class="todo__remove" data-cy="TodoDelete">×</button>
-
-          <div data-cy="TodoLoader" class="modal overlay">
-            <div class="modal-background has-background-white-ter"></div>
-            <div class="loader"></div>
-          </div>
-        </div>
-
-        <div data-cy="Todo" class="todo">
-          <label class="todo__status-label">
-            <input data-cy="TodoStatus" type="checkbox" class="todo__status" />
-          </label>
-
-          <form>
-            <input
-              data-cy="TodoTitleField"
-              type="text"
-              class="todo__title-field"
-              placeholder="Empty todo will be deleted"
-              value="Todo is being edited now"
-            />
-          </form>
-
-          <div data-cy="TodoLoader" class="modal overlay">
-            <div class="modal-background has-background-white-ter"></div>
-            <div class="loader"></div>
-          </div>
-        </div>
-
-        <div data-cy="Todo" class="todo">
-          <label class="todo__status-label">
-            <input data-cy="TodoStatus" type="checkbox" class="todo__status" />
-          </label>
-
-          <span data-cy="TodoTitle" class="todo__title"> Todo is being saved now </span>
-
-          <button type="button" class="todo__remove" data-cy="TodoDelete">×</button>
-
-          <div data-cy="TodoLoader" class="modal overlay is-active">
-            <div class="modal-background has-background-white-ter"></div>
-            <div class="loader"></div>
-          </div>
-        </div>
-      </section>
-
-      <footer class="todoapp__footer" data-cy="Footer">
-        <span class="todo-count" data-cy="TodosCounter"> 3 items left </span>
-
-        <nav class="filter" data-cy="Filter">
-          <a href="#/" class="filter__link selected" data-cy="FilterLinkAll"> All </a>
-
-          <a href="#/active" class="filter__link" data-cy="FilterLinkActive"> Active </a>
-
-          <a href="#/completed" class="filter__link" data-cy="FilterLinkCompleted"> Completed </a>
-        </nav>
-
-        <button type="button" class="todoapp__clear-completed" data-cy="ClearCompletedButton">
+      <footer class="todoapp__footer" v-if="todos.length > 0">
+        <span class="todo-count">{{ activeTodos.length }} items left</span>
+        <StatusFilter v-model="status" />
+        <button
+          type="button"
+          class="todoapp__clear-completed"
+          :disabled="activeTodos.length === todos.length"
+          @click="todos = activeTodos"
+        >
           Clear completed
         </button>
       </footer>
     </div>
 
-    <div data-cy="ErrorNotification" class="notification is-danger is-light has-text-weight-normal">
-      <button data-cy="HideErrorButton" type="button" class="delete"></button>
-      <br />
-      Title should not be empty
-      <br />
-      Unable to add a todo
-      <br />
-      Unable to delete a todo
-      <br />
-      Unable to update a todo
-    </div>
+    <Message class="is-danger">
+      <template #header>
+        <p>Server Error</p>
+      </template>
+
+      <template #default>
+        <p>{{ errorMessage }}</p>
+      </template>
+    </Message>
   </div>
 </template>
+<style>
+html {
+  background-color: white;
+}
+</style>
