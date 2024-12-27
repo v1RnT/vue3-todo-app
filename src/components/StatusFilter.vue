@@ -1,6 +1,15 @@
 <script setup lang="ts">
-defineProps({ modelValue: String })
-defineEmits(['update:modelValue'])
+import { Filter } from '@/types/Filter'
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const props = defineProps({
+  modelValue: {
+    type: String,
+    required: true,
+  },
+})
+
+const emit = defineEmits(['changeStatus'])
 </script>
 
 <template>
@@ -8,8 +17,8 @@ defineEmits(['update:modelValue'])
     <a
       href="#/"
       class="filter__link"
-      :class="{ selected: modelValue === 'all' }"
-      @click="$emit('update:modelValue', 'all')"
+      :class="{ selected: modelValue === Filter.All }"
+      @click="emit('changeStatus', Filter.All)"
     >
       All
     </a>
@@ -17,8 +26,8 @@ defineEmits(['update:modelValue'])
     <a
       href="#/active"
       class="filter__link"
-      :class="{ selected: modelValue === 'active' }"
-      @click="$emit('update:modelValue', 'active')"
+      :class="{ selected: modelValue === Filter.Active }"
+      @click="emit('changeStatus', Filter.Active)"
     >
       Active
     </a>
@@ -26,8 +35,8 @@ defineEmits(['update:modelValue'])
     <a
       href="#/completed"
       class="filter__link"
-      :class="{ selected: modelValue === 'completed' }"
-      @click="$emit('update:modelValue', 'completed')"
+      :class="{ selected: modelValue === Filter.Completed }"
+      @click="emit('changeStatus', Filter.Completed)"
     >
       Completed
     </a>

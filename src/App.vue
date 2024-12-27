@@ -13,24 +13,31 @@ const title = ref<string>('')
 const errorMessage = ref<string>(Errors.Default)
 const status = ref<Filter>(Filter.All)
 
+const activeTodos = computed(() => todos.value.filter((todo) => !todo.completed))
+const completedTodos = computed(() => todos.value.filter((todo) => todo.completed))
+
+const visibleTodos = computed(() => {
+  switch (status.value) {
+    case Filter.Active:
+      return activeTodos.value
+    case Filter.Completed:
+      return completedTodos.value
+    case Filter.All:
+    default:
+      return todos.value
+  }
+})
+
+const test = (newStatus: Filter) => {
+  status.value = newStatus
+}
+
 onMounted(async () => {
   try {
     todos.value = await todoApi.getTodos()
   } catch {
     errorMessage.value = Errors.LoadingTodos
   }
-})
-
-const activeTodos = computed(() => todos.value.filter((todo) => !todo.completed))
-
-const visibleTodos = computed(() => {
-  if (status.value === Filter.Active) {
-    return activeTodos.value
-  }
-  if (status.value === Filter.Completed) {
-    return todos.value.filter((todo) => todo.completed)
-  }
-  return todos.value
 })
 
 const addTodo = async () => {
@@ -146,7 +153,8 @@ const clearCompletedTodos = async () => {
 
       <footer class="todoapp__footer" v-if="todos.length > 0">
         <span class="todo-count">{{ activeTodos.length }} items left</span>
-        <StatusFilter v-model="status" />
+        <StatusFilter :modelValue="status" @changeStatus="test" />
+        <button @click="console.log(visibleTodos)">пеніс</button>
         <button
           type="button"
           class="todoapp__clear-completed"
