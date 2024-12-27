@@ -22,6 +22,7 @@ onMounted(async () => {
 })
 
 const activeTodos = computed(() => todos.value.filter((todo) => !todo.completed))
+
 const visibleTodos = computed(() => {
   if (status.value === Filter.Active) {
     return activeTodos.value
@@ -65,12 +66,51 @@ const updateTodo = async (updatedData: Partial<Todo> & { id: number }) => {
 
   try {
     const updatedTodo = await todoApi.patchTodo(updateProps, id)
+
     const currentTodo = todos.value.find((todo) => todo.id === id)
     if (currentTodo) {
       Object.assign(currentTodo, updatedTodo)
     }
   } catch {
     errorMessage.value = Errors.UpdateTodo
+  }
+}
+
+const handleToggleCompleted = (id: number, updateData: { completed: boolean }) => {
+  return todoApi.patchTodo({ ...updateData }, id)
+}
+
+const handleToggleCompletedAll = () => {
+  const allCompleted = todos.value.every((todo) => todo.completed)
+
+  if (!allCompleted) {
+    Promise.allSettled(todos.value.map(({ id }) => handleToggleCompleted(id, { completed: true })))
+      .then(() => {
+        todos.value = todos.value.map((todo) => ({ ...todo, completed: true }))
+      })
+      .catch(() => {
+        errorMessage.value = Errors.UpdateTodo
+      })
+  } else {
+    Promise.allSettled(todos.value.map(({ id }) => handleToggleCompleted(id, { completed: false })))
+      .then(() => {
+        todos.value = todos.value.map((todo) => ({ ...todo, completed: false }))
+      })
+      .catch(() => {
+        errorMessage.value = Errors.UpdateTodo
+      })
+  }
+}
+
+const clearCompletedTodos = async () => {
+  const completedTodos = todos.value.filter((todo) => todo.completed)
+
+  try {
+    await Promise.all(completedTodos.map((todo) => todoApi.deleteTodo(todo.id)))
+
+    todos.value = todos.value.filter((todo) => !todo.completed)
+  } catch {
+    errorMessage.value = Errors.DeleteTodo
   }
 }
 </script>
@@ -86,6 +126,7 @@ const updateTodo = async (updatedData: Partial<Todo> & { id: number }) => {
           type="button"
           class="todoapp__toggle-all"
           :class="{ active: activeTodos.length === 0 }"
+          @click="handleToggleCompletedAll"
         ></button>
 
         <form @submit.prevent="addTodo">
@@ -110,7 +151,7 @@ const updateTodo = async (updatedData: Partial<Todo> & { id: number }) => {
           type="button"
           class="todoapp__clear-completed"
           :disabled="activeTodos.length === todos.length"
-          @click="todos = activeTodos"
+          @click="clearCompletedTodos"
         >
           Clear completed
         </button>
@@ -128,6 +169,7 @@ const updateTodo = async (updatedData: Partial<Todo> & { id: number }) => {
     </Message>
   </div>
 </template>
+
 <style>
 html {
   background-color: white;
