@@ -28,7 +28,7 @@ const visibleTodos = computed(() => {
   }
 })
 
-const test = (newStatus: Filter) => {
+const changeStatus = (newStatus: Filter) => {
   status.value = newStatus
 }
 
@@ -153,8 +153,7 @@ const clearCompletedTodos = async () => {
 
       <footer class="todoapp__footer" v-if="todos.length > 0">
         <span class="todo-count">{{ activeTodos.length }} items left</span>
-        <StatusFilter :modelValue="status" @changeStatus="test" />
-        <button @click="console.log(visibleTodos)">пеніс</button>
+        <StatusFilter :modelValue="status" @changeStatus="changeStatus" />
         <button
           type="button"
           class="todoapp__clear-completed"
